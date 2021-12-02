@@ -361,7 +361,8 @@ impl<'a> Compiler<'a> {
 #[test]
 fn test_binary() {
     let input = String::from(
-        r#" 12
+        r#" 
+        12
         "#,
     );
 
