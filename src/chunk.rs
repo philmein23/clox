@@ -24,10 +24,16 @@ impl LineNumber {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Chunk {
     pub code: Vec<(OpCode, LineNumber)>,
     pub constants: Vec<Constant>,
+}
+
+impl Chunk {
+    pub fn new() -> Self {
+        Default::default()
+    }
 }
 
 impl Chunk {

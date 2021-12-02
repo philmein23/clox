@@ -51,7 +51,9 @@ impl Scanner {
                     ',' => self.create_token(TokenType::COMMA, line_number),
                     ';' => self.create_token(TokenType::SEMICOLON, line_number),
                     '"' => self.emit_string_token(&mut char_indices, line_number),
-                    ch if ch.is_ascii_digit() => self.emit_number_token(ch, &mut char_indices, line_number),
+                    ch if ch.is_ascii_digit() => {
+                        self.emit_number_token(ch, &mut char_indices, line_number)
+                    }
                     ch if ch.is_ascii_alphabetic() || ch == '_' => {
                         self.emit_iden_token(ch, &mut char_indices, line_number)
                     }
@@ -126,7 +128,12 @@ impl Scanner {
         }
     }
 
-    fn emit_number_token(&self, initial: char, char_indices: &mut Peekable<CharIndices>, ln: usize) -> Token {
+    fn emit_number_token(
+        &self,
+        initial: char,
+        char_indices: &mut Peekable<CharIndices>,
+        ln: usize,
+    ) -> Token {
         let mut digit = initial.to_string();
         while let Some((_pos, ch)) = char_indices.next_if(|(_pos, ch)| ch.is_ascii_digit()) {
             digit.push(ch);

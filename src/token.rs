@@ -42,6 +42,7 @@ pub enum TokenType {
     INVALID(String),
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub line: usize,
