@@ -39,7 +39,7 @@ pub enum TokenType {
     VAR,
     WHILE,
     EOF,
-    INVALID(String),
+    ERROR(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]

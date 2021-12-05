@@ -1,19 +1,22 @@
 use std::{iter::Peekable, str::CharIndices};
 
 use crate::token::{Token, TokenType};
+
+
 pub struct Scanner {
     source: String,
+    pub tokens: Vec<Token>
 }
 
 impl Scanner {
     pub fn new(source: &str) -> Self {
         Scanner {
             source: source.to_string(),
+            tokens: vec![]
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, ScannerError> {
-        let mut tokens = vec![];
+    pub fn scan_tokens(&mut self) -> Result<(), ScannerError> {
         let mut line_number = 0;
         for line in self.source.lines() {
             line_number += 1;
@@ -62,21 +65,20 @@ impl Scanner {
                             while let Some((_pos, _ch)) = char_indices.next() {
                                 continue;
                             }
-                            self.create_token(
-                                TokenType::INVALID("invalid".to_string()),
-                                line_number,
-                            )
+                            continue;
                         }
                         None => self.create_token(TokenType::SLASH, line_number),
                     },
-                    _ => self.create_token(TokenType::INVALID(ch.to_string()), line_number),
+                    _ => self.create_token(TokenType::ERROR(ch.to_string()), line_number),
                 };
 
-                tokens.push(token);
+                self.tokens.push(token);
             }
         }
 
-        Ok(tokens)
+        self.tokens.push(self.create_token(TokenType::EOF, line_number));
+
+        Ok(())
     }
 
     fn match_reserved_word(&self, iden: &str, ln: usize) -> Option<Token> {
@@ -124,7 +126,7 @@ impl Scanner {
         let maybe_quote = char_indices.next();
         match maybe_quote {
             Some(_) => self.create_token(TokenType::STRING(val), ln),
-            None => self.create_token(TokenType::INVALID("unterminated string".to_string()), ln),
+            None => self.create_token(TokenType::ERROR("unterminated string".to_string()), ln),
         }
     }
 

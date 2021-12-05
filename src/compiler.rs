@@ -51,16 +51,17 @@ pub struct ParseRule {
     precedence: Precedence,
 }
 
-pub struct Compiler<'a> {
-    tokens: &'a mut Peekable<IntoIter<Token>>,
+pub struct Compiler {
+    tokens: Peekable<IntoIter<Token>>,
     chunk: Chunk,
     curr_line: LineNumber,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(tokens: &'a mut Peekable<IntoIter<Token>>) -> Self {
+impl Compiler {
+    pub fn new() -> Self {
         let chunk = Chunk::new();
         let ln = LineNumber::new(0);
+        let tokens = vec![].into_iter().peekable();
         Compiler {
             tokens,
             chunk,
@@ -68,9 +69,14 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn compile(&mut self) {
+    pub fn compile(&mut self, source: &str) {
+        let mut scanner = Scanner::new(source);
+        let _ = scanner.scan_tokens();
+        self.tokens = scanner.tokens.into_iter().peekable();
+
         let _ = self.expression();
 
+        self.emit_return();
         println!("CURRENT CHUNK: {:?}, CURRENT CONSTANT: {:?}", self.chunk.code, self.chunk.constants);
     }
 
@@ -288,7 +294,7 @@ impl<'a> Compiler<'a> {
                 infix: None,
                 precedence: Precedence::None,
             },
-            TokenType::INVALID(_) => ParseRule {
+            TokenType::ERROR(_) => ParseRule {
                 prefix: None,
                 infix: None,
                 precedence: Precedence::None,
@@ -341,7 +347,11 @@ impl<'a> Compiler<'a> {
                self.emit_constant(n); 
         }
     }
-    fn grouping(&mut self) {}
+    fn grouping(&mut self) {
+        let _ = self.advance(); // consume the '(' token
+        let _ = self.expression();
+        let _ = self.advance(); // consume the ')' token
+    }
 
     fn parse_precedence(&mut self, precedence: Precedence) {
         let prefix_rule = self.get_rule();
@@ -379,6 +389,10 @@ impl<'a> Compiler<'a> {
         let index = self.chunk.add_constant(Constant::Number(num));
 
         self.emit_byte(OpCode::Constant(index));
+    }
+
+    fn emit_return(&mut self) {
+        self.emit_byte(OpCode::Return);
     }
 
     fn peek(&mut self) -> Option<&Token> {
@@ -432,10 +446,29 @@ fn test_binary() {
     compile(input);
 }
 
+#[test]
+fn test_binary_two() {
+    let input = String::from(
+        r#"
+        -5 - 10 + 4 / 2;
+        "#
+    );
+
+    compile(input);
+}
+
+#[test]
+fn test_grouping() {
+    let input = String::from(
+        r#"
+        (12 + 4 +  (4 - 2)) * 4;
+        "#
+    );
+
+    compile(input);
+}
+
 fn compile(input: String) {
-    let mut scanner = Scanner::new(input.as_str());
-    let tokens = scanner.scan_tokens().unwrap();
-    let mut iter = tokens.into_iter().peekable();
-    let mut compiler = Compiler::new(&mut iter);
-    compiler.compile();
+    let mut compiler = Compiler::new();
+    compiler.compile(input.as_str());
 }

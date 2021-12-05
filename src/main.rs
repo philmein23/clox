@@ -40,13 +40,9 @@ fn run_file(path: String) -> Result<(), Error> {
 
     match result {
         Some(input) => {
-            let mut scanner = Scanner::new(&input);
-            if let Ok(tokens) = scanner.scan_tokens() {
-                let mut iter = tokens.into_iter().peekable();
-                let mut compiler = Compiler::new(&mut iter);
+                let mut compiler = Compiler::new();
 
-                compiler.compile();
-            }
+                compiler.compile(&input);
 
             Ok(())
         }
