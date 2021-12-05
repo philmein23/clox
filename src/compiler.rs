@@ -69,18 +69,20 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, source: &str) {
+    pub fn compile(&mut self, source: &str) -> Result<(), String> {
         let mut scanner = Scanner::new(source);
         let _ = scanner.scan_tokens();
         self.tokens = scanner.tokens.into_iter().peekable();
 
-        let _ = self.expression();
+        let maybe_ok = self.expression();
 
         self.emit_return();
         println!(
             "CURRENT CHUNK: {:?}, CURRENT CONSTANT: {:?}",
             self.chunk.code, self.chunk.constants
         );
+
+        maybe_ok
     }
 
     fn expression(&mut self) -> Result<(), String> {
@@ -305,7 +307,7 @@ impl Compiler {
         }
     }
 
-    fn apply_parse_fn(&mut self, parse_fn: ParseFn) {
+    fn apply_parse_fn(&mut self, parse_fn: ParseFn) -> Result<(), String> {
         match parse_fn {
             ParseFn::Unary => self.unary(),
             ParseFn::Binary => self.binary(),
@@ -314,7 +316,7 @@ impl Compiler {
         }
     }
 
-    fn binary(&mut self) {
+    fn binary(&mut self) -> Result<(), String> {
         let op = self.advance();
         let rule = self.get_rule();
         self.parse_precedence(increment_precedence(rule.precedence));
@@ -325,12 +327,14 @@ impl Compiler {
             TokenType::STAR => self.emit_byte(OpCode::Multiply),
             TokenType::SLASH => self.emit_byte(OpCode::Divide),
             _ => {
-                return;
+                return Ok(());
             }
         }
+
+        Ok(())
     }
 
-    fn unary(&mut self) {
+    fn unary(&mut self) -> Result<(), String> {
         let unary_op = self.advance();
 
         self.parse_precedence(Precedence::Unary);
@@ -338,35 +342,40 @@ impl Compiler {
         match unary_op.token_type {
             TokenType::MINUS => self.emit_byte(OpCode::Negate),
             _ => {
-                return;
+                return Ok(());
             }
         }
+
+        Ok(())
     }
 
-    fn number(&mut self) {
+    fn number(&mut self) -> Result<(), String> {
         let token = self.advance();
         if let TokenType::NUMBER(n) = token.token_type {
             self.emit_constant(n);
         }
+
+        Ok(())
     }
-    fn grouping(&mut self) {
+    fn grouping(&mut self) -> Result<(), String> {
         let _ = self.advance(); // consume the '(' token
         let _ = self.expression();
         let _ = self.advance(); // consume the ')' token
+
+        Ok(())
     }
 
-    fn parse_precedence(&mut self, precedence: Precedence) {
+    fn parse_precedence(&mut self, precedence: Precedence) -> Result<(), String> {
         let prefix_rule = self.get_rule();
+        let mut maybe_ok = Ok(());
 
-        if let ParseRule {
-            prefix: Some(prefix_rule),
-            infix: _,
-            precedence: _,
-        } = prefix_rule
-        {
-            self.apply_parse_fn(prefix_rule);
-        } else {
-            panic!("Expected expression.");
+        match prefix_rule.prefix {
+            Some(rule) => {
+                maybe_ok = self.apply_parse_fn(rule);
+            }
+            _ => {
+                return Err("Expected expression".to_string());
+            }
         }
 
         while precedence <= self.get_rule().precedence {
@@ -378,9 +387,11 @@ impl Compiler {
                 precedence: _,
             } = infix_rule
             {
-                self.apply_parse_fn(infix_rule);
+                maybe_ok = self.apply_parse_fn(infix_rule);
             }
         }
+
+        maybe_ok
     }
 
     fn emit_byte(&mut self, op: OpCode) {
