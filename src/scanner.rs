@@ -2,17 +2,16 @@ use std::{iter::Peekable, str::CharIndices};
 
 use crate::token::{Token, TokenType};
 
-
 pub struct Scanner {
     source: String,
-    pub tokens: Vec<Token>
+    pub tokens: Vec<Token>,
 }
 
 impl Scanner {
     pub fn new(source: &str) -> Self {
         Scanner {
             source: source.to_string(),
-            tokens: vec![]
+            tokens: vec![],
         }
     }
 
@@ -76,7 +75,8 @@ impl Scanner {
             }
         }
 
-        self.tokens.push(self.create_token(TokenType::EOF, line_number));
+        self.tokens
+            .push(self.create_token(TokenType::EOF, line_number));
 
         Ok(())
     }

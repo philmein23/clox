@@ -32,7 +32,7 @@ fn increment_precedence(prec: Precedence) -> Precedence {
         Precedence::Factor => Precedence::Unary,
         Precedence::Unary => Precedence::Call,
         Precedence::Call => Precedence::Primary,
-        Precedence::Primary => Precedence::Primary
+        Precedence::Primary => Precedence::Primary,
     }
 }
 
@@ -77,7 +77,10 @@ impl Compiler {
         let _ = self.expression();
 
         self.emit_return();
-        println!("CURRENT CHUNK: {:?}, CURRENT CONSTANT: {:?}", self.chunk.code, self.chunk.constants);
+        println!(
+            "CURRENT CHUNK: {:?}, CURRENT CONSTANT: {:?}",
+            self.chunk.code, self.chunk.constants
+        );
     }
 
     fn expression(&mut self) -> Result<(), String> {
@@ -95,7 +98,7 @@ impl Compiler {
                 prefix: None,
                 infix: None,
                 precedence: Precedence::None,
-            }
+            };
         }
 
         match token.token_type {
@@ -331,20 +334,19 @@ impl Compiler {
         let unary_op = self.advance();
 
         self.parse_precedence(Precedence::Unary);
-        
+
         match unary_op.token_type {
             TokenType::MINUS => self.emit_byte(OpCode::Negate),
             _ => {
                 return;
             }
         }
-
     }
 
     fn number(&mut self) {
         let token = self.advance();
         if let TokenType::NUMBER(n) = token.token_type {
-               self.emit_constant(n); 
+            self.emit_constant(n);
         }
     }
     fn grouping(&mut self) {
@@ -422,7 +424,7 @@ fn test_number() {
         "#,
     );
 
-    compile(input);    
+    compile(input);
 }
 
 #[test]
@@ -430,7 +432,7 @@ fn test_unary() {
     let input = String::from(
         r#"
          -12
-        "#
+        "#,
     );
 
     compile(input);
@@ -441,7 +443,7 @@ fn test_binary() {
     let input = String::from(
         r#"
         12 + 4 * 3;
-        "#
+        "#,
     );
     compile(input);
 }
@@ -451,7 +453,7 @@ fn test_binary_two() {
     let input = String::from(
         r#"
         -5 - 10 + 4 / 2;
-        "#
+        "#,
     );
 
     compile(input);
@@ -462,7 +464,7 @@ fn test_grouping() {
     let input = String::from(
         r#"
         (12 + 4 +  (4 - 2)) * 4;
-        "#
+        "#,
     );
 
     compile(input);

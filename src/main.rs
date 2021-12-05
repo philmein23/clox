@@ -40,9 +40,9 @@ fn run_file(path: String) -> Result<(), Error> {
 
     match result {
         Some(input) => {
-                let mut compiler = Compiler::new();
+            let mut compiler = Compiler::new();
 
-                compiler.compile(&input);
+            compiler.compile(&input);
 
             Ok(())
         }
