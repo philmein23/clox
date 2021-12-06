@@ -1,4 +1,5 @@
 use crate::chunk::{Chunk, Constant, LineNumber, OpCode};
+use crate::compiler::Compiler;
 use crate::debug::disassemble_chunk;
 use crate::value::Value;
 
@@ -7,8 +8,8 @@ pub enum InterpretResult {
 }
 
 pub enum InterpretError {
-    Interpret_Compile_Error,
-    Interpret_Runtime_Error,
+    InterpretCompileError(String),
+    InterpretRuntimeError,
 }
 
 pub struct VM {
@@ -18,15 +19,25 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(chunk: Chunk) -> Self {
+    pub fn new() -> Self {
         VM {
-            chunk,
+            chunk: Chunk::new(),
             ip: 0,
             stack: vec![],
         }
     }
-    pub fn interpret(&mut self) -> Result<(), InterpretError> {
-        self.run()
+    pub fn interpret(&mut self, source: &str) -> Result<(), InterpretError> {
+        let mut compiler = Compiler::new();
+        match compiler.compile(source) {
+            Ok(_) => {
+                self.chunk = compiler.chunk;
+
+                self.run()
+            }
+            Err(err) => {
+                return Err(InterpretError::InterpretCompileError(err));
+            }
+        }
     }
 
     fn run(&mut self) -> Result<(), InterpretError> {
@@ -48,7 +59,7 @@ impl VM {
                     }
                 }
                 Some((OpCode::Return, ln)) => {
-                    println!("{:?}", self.pop());
+                    println!("RETURN VALUE: {:?}", self.pop());
                 }
                 Some((OpCode::Constant(index), ln)) => {
                     let val = self.chunk.constants.get(index);
@@ -58,7 +69,7 @@ impl VM {
                             let runtime_val = Value::Number(num);
                             self.stack.push(runtime_val);
                         }
-                        _ => return Err(InterpretError::Interpret_Runtime_Error),
+                        _ => return Err(InterpretError::InterpretRuntimeError),
                     }
                 }
                 _ => {
@@ -114,4 +125,20 @@ impl VM {
     fn pop(&mut self) -> Option<Value> {
         self.stack.pop()
     }
+}
+
+#[test]
+fn test_arithmetic() {
+    let input = String::from(
+        r#"
+           12 + 4;
+        "#
+    );
+
+    interpret(input);
+}
+
+fn interpret(source: String) {
+    let mut vm = VM::new();
+    vm.interpret(source.as_str());
 }

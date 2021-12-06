@@ -21,18 +21,6 @@ fn main() {
     for arg in args().skip(1) {
         let result = run_file(arg).or_else(|e| Err(e));
     }
-    let chunk = Chunk {
-        code: vec![
-            (OpCode::Constant(0), LineNumber::new(1)),
-            (OpCode::Constant(1), LineNumber::new(2)),
-            (OpCode::Add, LineNumber::new(3)),
-            (OpCode::Return, LineNumber::new(20)),
-        ],
-        constants: vec![Constant::Number(10 as f64), Constant::Number(3 as f64)],
-    };
-
-    let mut vm = VM::new(chunk);
-    vm.interpret();
 }
 
 fn run_file(path: String) -> Result<(), Error> {

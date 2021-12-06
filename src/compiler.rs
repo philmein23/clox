@@ -53,7 +53,7 @@ pub struct ParseRule {
 
 pub struct Compiler {
     tokens: Peekable<IntoIter<Token>>,
-    chunk: Chunk,
+    pub chunk: Chunk,
     curr_line: LineNumber,
 }
 
