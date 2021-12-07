@@ -90,19 +90,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn get_rule(&mut self) -> ParseRule {
-        let token;
-
-        if let Some(tkn) = self.peek() {
-            token = tkn;
-        } else {
-            return ParseRule {
-                prefix: None,
-                infix: None,
-                precedence: Precedence::None,
-            };
-        }
-
+    fn get_rule(&mut self, token: &Token) -> ParseRule {
         match token.token_type {
             TokenType::LEFT_PAREN => ParseRule {
                 prefix: Some(ParseFn::Grouping),
@@ -318,7 +306,7 @@ impl Compiler {
 
     fn binary(&mut self) -> Result<(), String> {
         let op = self.advance();
-        let rule = self.get_rule();
+        let rule = self.get_rule(&op);
         self.parse_precedence(increment_precedence(rule.precedence));
 
         match op.token_type {
@@ -366,7 +354,8 @@ impl Compiler {
     }
 
     fn parse_precedence(&mut self, precedence: Precedence) -> Result<(), String> {
-        let prefix_rule = self.get_rule();
+        let token = self.peek();
+        let prefix_rule = self.get_rule(&token);
         let mut maybe_ok = Ok(());
 
         match prefix_rule.prefix {
@@ -378,16 +367,22 @@ impl Compiler {
             }
         }
 
-        while precedence <= self.get_rule().precedence {
-            let infix_rule = self.get_rule();
-
-            if let ParseRule {
-                prefix: _,
-                infix: Some(infix_rule),
-                precedence: _,
-            } = infix_rule
-            {
-                maybe_ok = self.apply_parse_fn(infix_rule);
+        // loops through an arithmetic expression 
+        // and only breaks when precedence is too low or not an infix operator
+        loop {
+            let token = self.peek();
+            let maybe_infix_rule = self.get_rule(&token);
+            if precedence <= maybe_infix_rule.precedence {
+                if let ParseRule {
+                    prefix: _,
+                    infix: Some(infix_rule),
+                    precedence: _,
+                } = maybe_infix_rule
+                {
+                    maybe_ok = self.apply_parse_fn(infix_rule);
+                }
+            } else {
+                break;
             }
         }
 
@@ -408,8 +403,15 @@ impl Compiler {
         self.emit_byte(OpCode::Return);
     }
 
-    fn peek(&mut self) -> Option<&Token> {
-        self.tokens.peek()
+    fn peek(&mut self) -> Token {
+        if let Some(token) = self.tokens.peek() {
+            token.to_owned()
+        } else {
+            return Token {
+                token_type: TokenType::EOF,
+                line: 0
+            }
+        }
     }
 
     fn advance(&mut self) -> Token {
@@ -453,7 +455,7 @@ fn test_unary() {
 fn test_binary() {
     let input = String::from(
         r#"
-        12 + 4 * 3;
+        12 + 4 * 3 - 1;
         "#,
     );
     compile(input);

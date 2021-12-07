@@ -132,7 +132,18 @@ fn test_arithmetic() {
     let input = String::from(
         r#"
            12 + 4;
-        "#
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_arithmetic_two() {
+    let input = String::from(
+        r#"
+           12 + 10 * 4 - 1;
+        "#,
     );
 
     interpret(input);
