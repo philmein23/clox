@@ -31,7 +31,6 @@ impl VM {
         match compiler.compile(source) {
             Ok(_) => {
                 self.chunk = compiler.chunk;
-
                 self.run()
             }
             Err(err) => {
@@ -58,8 +57,29 @@ impl VM {
                         self.stack.push(Value::Number(-n));
                     }
                 }
+                Some((OpCode::Not, ln)) => {
+                    let val = match self.pop() {
+                        Some(Value::Nil) => Value::Bool(false),
+                        Some(Value::Bool(true)) => Value::Bool(false),
+                        Some(Value::Bool(false)) => Value::Bool(true),
+                        _  => {
+                            return Err(InterpretError::InterpretRuntimeError)
+                        }
+                    };
+
+                    self.stack.push(val);
+                }
                 Some((OpCode::Return, ln)) => {
                     println!("RETURN VALUE: {:?}", self.pop());
+                }
+                Some((OpCode::True, ln)) => {
+                    self.stack.push(Value::Bool(true));
+                }
+                Some((OpCode::False, ln)) => {
+                    self.stack.push(Value::Bool(false));
+                }
+                Some((OpCode::Nil, ln)) => {
+                    self.stack.push(Value::Nil);
                 }
                 Some((OpCode::Constant(index), ln)) => {
                     let val = self.chunk.constants.get(index);
@@ -144,6 +164,29 @@ fn test_arithmetic_two() {
         r#"
            12 + 10 * 4 - 1;
         "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_not() {
+    let input = String::from(
+        r#"
+            !true;
+        "#
+    );
+
+    interpret(input);
+}
+
+
+#[test]
+fn test_not_two() {
+    let input = String::from(
+        r#"
+            !false;
+        "#
     );
 
     interpret(input);

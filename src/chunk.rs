@@ -7,10 +7,15 @@ pub enum OpCode {
     Subtract,
     Multiply,
     Divide,
+    Nil,
+    True,
+    False,
+    Not,
 }
 #[derive(Debug, Clone)]
 pub enum Constant {
     Number(f64),
+    
 }
 
 #[derive(Debug, Copy, Clone)]

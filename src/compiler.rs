@@ -42,6 +42,7 @@ pub enum ParseFn {
     Unary,
     Number,
     Grouping,
+    Literal,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -148,7 +149,7 @@ impl Compiler {
                 precedence: Precedence::Factor,
             },
             TokenType::BANG => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::Unary),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -218,7 +219,7 @@ impl Compiler {
                 precedence: Precedence::None,
             },
             TokenType::FALSE => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::Literal),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -238,7 +239,7 @@ impl Compiler {
                 precedence: Precedence::None,
             },
             TokenType::NIL => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::Literal),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -268,7 +269,7 @@ impl Compiler {
                 precedence: Precedence::None,
             },
             TokenType::TRUE => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::Literal),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -295,12 +296,27 @@ impl Compiler {
         }
     }
 
+    fn literal(&mut self) -> Result<(), String> {
+        let token  = self.advance(); // consume the literal
+
+        match token.token_type {
+            TokenType::TRUE => self.emit_byte(OpCode::True),
+            TokenType::FALSE => self.emit_byte(OpCode::False),
+            TokenType::NIL => self.emit_byte(OpCode::Nil),
+            _ => {
+                return Ok(());
+            }
+        }
+        Ok(())
+    }
+
     fn apply_parse_fn(&mut self, parse_fn: ParseFn) -> Result<(), String> {
         match parse_fn {
             ParseFn::Unary => self.unary(),
             ParseFn::Binary => self.binary(),
             ParseFn::Number => self.number(),
             ParseFn::Grouping => self.grouping(),
+            ParseFn::Literal => self.literal()
         }
     }
 
@@ -328,6 +344,7 @@ impl Compiler {
         self.parse_precedence(Precedence::Unary);
 
         match unary_op.token_type {
+            TokenType::BANG => self.emit_byte(OpCode::Not),
             TokenType::MINUS => self.emit_byte(OpCode::Negate),
             _ => {
                 return Ok(());
@@ -478,6 +495,40 @@ fn test_grouping() {
         r#"
         (12 + 4 +  (4 - 2)) * 4;
         "#,
+    );
+
+    compile(input);
+}
+#[test]
+fn test_true() {
+    let input = String::from(
+        r#"
+         true;
+        "#
+    );
+
+    compile(input);
+}
+
+
+#[test]
+fn test_false() {
+    let input = String::from(
+        r#"
+         false;
+        "#
+    );
+
+    compile(input);
+}
+
+
+#[test]
+fn test_nil() {
+    let input = String::from(
+        r#"
+         nil;
+        "#
     );
 
     compile(input);

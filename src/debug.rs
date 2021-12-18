@@ -20,6 +20,10 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
             OpCode::Subtract => "OP_SUBTRACT".to_string(),
             OpCode::Multiply => "OP_MULTIPLY".to_string(),
             OpCode::Divide => "OP_DIVIDE".to_string(),
+            OpCode::Nil => "OP_NIL".to_string(),
+            OpCode::True => "OP_TRUE".to_string(),
+            OpCode::False => "OP_FALSE".to_string(),
+            OpCode::Not => "OP_NOT".to_string()
         };
 
         let instruction = format!(
