@@ -2,5 +2,5 @@
 pub enum Value {
     Number(f64),
     Nil,
-    Bool(bool)
+    Bool(bool),
 }

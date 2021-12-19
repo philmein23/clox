@@ -155,8 +155,8 @@ impl Compiler {
             },
             TokenType::BANG_EQUAL => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Equality,
             },
             TokenType::EQUAL => ParseRule {
                 prefix: None,
@@ -165,28 +165,28 @@ impl Compiler {
             },
             TokenType::EQUAL_EQUAL => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Equality,
             },
             TokenType::GREATER => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Comparison,
             },
             TokenType::GREATER_EQUAL => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Comparison,
             },
             TokenType::LESS => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Comparison,
             },
             TokenType::LESS_EQUAL => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Binary),
+                precedence: Precedence::Comparison,
             },
             TokenType::IDENTIFIER(_) => ParseRule {
                 prefix: None,
@@ -297,7 +297,7 @@ impl Compiler {
     }
 
     fn literal(&mut self) -> Result<(), String> {
-        let token  = self.advance(); // consume the literal
+        let token = self.advance(); // consume the literal
 
         match token.token_type {
             TokenType::TRUE => self.emit_byte(OpCode::True),
@@ -316,7 +316,7 @@ impl Compiler {
             ParseFn::Binary => self.binary(),
             ParseFn::Number => self.number(),
             ParseFn::Grouping => self.grouping(),
-            ParseFn::Literal => self.literal()
+            ParseFn::Literal => self.literal(),
         }
     }
 
@@ -326,6 +326,12 @@ impl Compiler {
         self.parse_precedence(increment_precedence(rule.precedence));
 
         match op.token_type {
+            TokenType::BANG_EQUAL => self.emit_bytes(OpCode::Equal, OpCode::Not),
+            TokenType::EQUAL_EQUAL => self.emit_byte(OpCode::Equal),
+            TokenType::GREATER => self.emit_byte(OpCode::Greater),
+            TokenType::GREATER_EQUAL => self.emit_bytes(OpCode::Less, OpCode::Not),
+            TokenType::LESS => self.emit_byte(OpCode::Less),
+            TokenType::LESS_EQUAL => self.emit_bytes(OpCode::Greater, OpCode::Not),
             TokenType::PLUS => self.emit_byte(OpCode::Add),
             TokenType::MINUS => self.emit_byte(OpCode::Subtract),
             TokenType::STAR => self.emit_byte(OpCode::Multiply),
@@ -384,7 +390,7 @@ impl Compiler {
             }
         }
 
-        // loops through an arithmetic expression 
+        // loops through an arithmetic expression
         // and only breaks when precedence is too low or not an infix operator
         loop {
             let token = self.peek();
@@ -410,6 +416,11 @@ impl Compiler {
         self.chunk.code.push((op, self.curr_line));
     }
 
+    fn emit_bytes(&mut self, op1: OpCode, op2: OpCode) {
+        self.chunk.code.push((op1, self.curr_line));
+        self.chunk.code.push((op2, self.curr_line));
+    }
+
     fn emit_constant(&mut self, num: f64) {
         let index = self.chunk.add_constant(Constant::Number(num));
 
@@ -426,8 +437,8 @@ impl Compiler {
         } else {
             return Token {
                 token_type: TokenType::EOF,
-                line: 0
-            }
+                line: 0,
+            };
         }
     }
 
@@ -504,31 +515,29 @@ fn test_true() {
     let input = String::from(
         r#"
          true;
-        "#
+        "#,
     );
 
     compile(input);
 }
-
 
 #[test]
 fn test_false() {
     let input = String::from(
         r#"
          false;
-        "#
+        "#,
     );
 
     compile(input);
 }
-
 
 #[test]
 fn test_nil() {
     let input = String::from(
         r#"
          nil;
-        "#
+        "#,
     );
 
     compile(input);

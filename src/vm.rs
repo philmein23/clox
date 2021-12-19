@@ -62,9 +62,7 @@ impl VM {
                         Some(Value::Nil) => Value::Bool(false),
                         Some(Value::Bool(true)) => Value::Bool(false),
                         Some(Value::Bool(false)) => Value::Bool(true),
-                        _  => {
-                            return Err(InterpretError::InterpretRuntimeError)
-                        }
+                        _ => return Err(InterpretError::InterpretRuntimeError),
                     };
 
                     self.stack.push(val);
@@ -80,6 +78,9 @@ impl VM {
                 }
                 Some((OpCode::Nil, ln)) => {
                     self.stack.push(Value::Nil);
+                }
+                Some((OpCode::Equal, ln)) => {
+                    self.handle_equal();
                 }
                 Some((OpCode::Constant(index), ln)) => {
                     let val = self.chunk.constants.get(index);
@@ -104,6 +105,25 @@ impl VM {
         let op = self.chunk.code.get(self.ip);
         self.ip += 1;
         op.cloned()
+    }
+
+    fn handle_equal(&mut self) {
+        let right = self.pop();
+        let left = self.pop();
+
+        let result = match (left, right) {
+            (Some(Value::Bool(a)), Some(Value::Bool(b))) => Value::Bool(a == b),
+            (Some(Value::Nil), Some(Value::Nil)) => Value::Bool(true),
+            (Some(Value::Number(a)), Some(Value::Number(b))) => Value::Bool(a == b),
+            _ => {
+                panic!(
+                    "There is no runtime value representation with {:?}",
+                    (left, right)
+                )
+            }
+        };
+
+        self.stack.push(result)
     }
 
     fn handle_binary_op(&mut self, op: &OpCode) {
@@ -174,7 +194,29 @@ fn test_not() {
     let input = String::from(
         r#"
             !true;
-        "#
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_not_two() {
+    let input = String::from(
+        r#"
+            !false;
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_equal() {
+    let input = String::from(
+        r#"
+            3 == 3;
+        "#,
     );
 
     interpret(input);
@@ -182,15 +224,16 @@ fn test_not() {
 
 
 #[test]
-fn test_not_two() {
+fn test_equal_two() {
     let input = String::from(
         r#"
-            !false;
-        "#
+            3 == 4;
+        "#,
     );
 
     interpret(input);
 }
+
 
 fn interpret(source: String) {
     let mut vm = VM::new();

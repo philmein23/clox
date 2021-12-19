@@ -11,11 +11,13 @@ pub enum OpCode {
     True,
     False,
     Not,
+    Equal,
+    Greater,
+    Less,
 }
 #[derive(Debug, Clone)]
 pub enum Constant {
     Number(f64),
-    
 }
 
 #[derive(Debug, Copy, Clone)]

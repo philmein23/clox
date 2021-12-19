@@ -23,7 +23,10 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
             OpCode::Nil => "OP_NIL".to_string(),
             OpCode::True => "OP_TRUE".to_string(),
             OpCode::False => "OP_FALSE".to_string(),
-            OpCode::Not => "OP_NOT".to_string()
+            OpCode::Not => "OP_NOT".to_string(),
+            OpCode::Greater => "OP_GREATER".to_string(),
+            OpCode::Less => "OP_LESS".to_string(),
+            OpCode::Equal => "OP_EQUAL".to_string(),
         };
 
         let instruction = format!(
