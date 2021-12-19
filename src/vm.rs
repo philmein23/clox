@@ -82,6 +82,12 @@ impl VM {
                 Some((OpCode::Equal, ln)) => {
                     self.handle_equal();
                 }
+                Some((OpCode::Greater, ln)) => {
+                    self.handle_binary_op(&OpCode::Greater);
+                }
+                Some((OpCode::Less, ln)) => {
+                    self.handle_binary_op(&OpCode::Less);
+                }
                 Some((OpCode::Constant(index), ln)) => {
                     let val = self.chunk.constants.get(index);
                     match val {
@@ -142,6 +148,12 @@ impl VM {
 
         let (lv, rv) = lr_vals;
         match op {
+            OpCode::Greater => {
+                self.stack.push(Value::Bool(lv > rv));
+            }
+            OpCode::Less => {
+                self.stack.push(Value::Bool(lv < rv));
+            }
             OpCode::Add => {
                 self.stack.push(Value::Number(lv + rv));
             }
@@ -233,6 +245,18 @@ fn test_equal_two() {
 
     interpret(input);
 }
+
+#[test]
+fn test_greater_than_or_equal() {
+    let input = String::from(
+        r#"
+            3 >= 2;
+        "#
+    );
+
+    interpret(input);
+}
+
 
 
 fn interpret(source: String) {
