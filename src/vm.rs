@@ -53,15 +53,15 @@ impl VM {
                     }
                 }
                 Some((OpCode::Negate, ln)) => {
-                    if let Some(Value::Number(n)) = self.pop() {
+                    if let Value::Number(n) = self.pop() {
                         self.stack.push(Value::Number(-n));
                     }
                 }
                 Some((OpCode::Not, ln)) => {
                     let val = match self.pop() {
-                        Some(Value::Nil) => Value::Bool(false),
-                        Some(Value::Bool(true)) => Value::Bool(false),
-                        Some(Value::Bool(false)) => Value::Bool(true),
+                        Value::Nil => Value::Bool(false),
+                        Value::Bool(true) => Value::Bool(false),
+                        Value::Bool(false) => Value::Bool(true),
                         _ => return Err(InterpretError::InterpretRuntimeError),
                     };
 
@@ -91,9 +91,14 @@ impl VM {
                 Some((OpCode::Constant(index), ln)) => {
                     let val = self.chunk.constants.get(index);
                     match val {
-                        Some(&Constant::Number(num)) => {
+                        Some(Constant::Number(num)) => {
                             println!("Value {:?}", num);
-                            let runtime_val = Value::Number(num);
+                            let runtime_val = Value::Number(num.clone());
+                            self.stack.push(runtime_val);
+                        }
+                        Some(Constant::String(s)) => {
+                            let clone = s.clone();
+                            let runtime_val = Value::String(clone);
                             self.stack.push(runtime_val);
                         }
                         _ => return Err(InterpretError::InterpretRuntimeError),
@@ -117,10 +122,11 @@ impl VM {
         let right = self.pop();
         let left = self.pop();
 
-        let result = match (left, right) {
-            (Some(Value::Bool(a)), Some(Value::Bool(b))) => Value::Bool(a == b),
-            (Some(Value::Nil), Some(Value::Nil)) => Value::Bool(true),
-            (Some(Value::Number(a)), Some(Value::Number(b))) => Value::Bool(a == b),
+        let result = match (&left, &right) {
+            (Value::Bool(a), Value::Bool(b)) => Value::Bool(a == b),
+            (Value::Nil, Value::Nil) => Value::Bool(true),
+            (Value::Number(a), Value::Number(b)) => Value::Bool(a == b),
+            (Value::String(a), Value::String(b)) => Value::Bool(a.eq(b)),
             _ => {
                 panic!(
                     "There is no runtime value representation with {:?}",
@@ -136,8 +142,24 @@ impl VM {
         let right = self.pop();
         let left = self.pop();
 
-        let lr_vals = match (left, right) {
-            (Some(Value::Number(lnum)), Some(Value::Number(rnum))) => (lnum, rnum),
+        if let (Value::String(l), Value::String(r)) = (&left, &right) {
+            match &op {
+                OpCode::Add => {
+                    let lclone = l.clone();
+                    let rclone = r.clone();
+                    let concat = format!("{}{}", lclone, rclone); 
+                    self.stack.push(Value::String(concat));
+                }
+                _ => {
+                    panic!("Op {:?} does not work with strings", op)
+                }
+            }
+
+            return;
+        }
+
+        let lr_vals = match (&left, &right) {
+            (Value::Number(lnum), Value::Number(rnum)) => (lnum, rnum),
             _ => {
                 panic!(
                     "There is no known runtime value representation with {:?}",
@@ -174,8 +196,12 @@ impl VM {
             }
         }
     }
-    fn pop(&mut self) -> Option<Value> {
-        self.stack.pop()
+    fn pop(&mut self) -> Value {
+        if let Some(val) = self.stack.pop() {
+            return val;
+        } else {
+            panic!("Nothing left to pop");
+        }
     }
 }
 
@@ -234,7 +260,6 @@ fn test_equal() {
     interpret(input);
 }
 
-
 #[test]
 fn test_equal_two() {
     let input = String::from(
@@ -251,6 +276,39 @@ fn test_greater_than_or_equal() {
     let input = String::from(
         r#"
             3 >= 2;
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_string() {
+    let input = String::from(
+        r#"
+            "Phil Yo";
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_string_concatenation() {
+    let input = String::from(
+        r#"
+          "Phil" + "Nguyen";
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_string_equality() {
+    let input = String::from(
+        r#"
+          "Phil" == "Phil";
         "#
     );
 
@@ -258,6 +316,16 @@ fn test_greater_than_or_equal() {
 }
 
 
+#[test]
+fn test_string_inequality() {
+    let input = String::from(
+        r#"
+          "Phil" == "Bob";
+        "#
+    );
+
+    interpret(input);
+}
 
 fn interpret(source: String) {
     let mut vm = VM::new();

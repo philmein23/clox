@@ -43,6 +43,7 @@ pub enum ParseFn {
     Number,
     Grouping,
     Literal,
+    String,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -194,7 +195,7 @@ impl Compiler {
                 precedence: Precedence::None,
             },
             TokenType::STRING(_) => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::String),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -310,6 +311,18 @@ impl Compiler {
         Ok(())
     }
 
+    fn string(&mut self) -> Result<(), String> {
+        let token = self.advance(); // consume string token;
+        match token.token_type {
+            TokenType::STRING(s) => {
+                self.emit_constant(Constant::String(s));
+            }
+            _ => return Ok(()),
+        }
+
+        Ok(())
+    }
+
     fn apply_parse_fn(&mut self, parse_fn: ParseFn) -> Result<(), String> {
         match parse_fn {
             ParseFn::Unary => self.unary(),
@@ -317,6 +330,7 @@ impl Compiler {
             ParseFn::Number => self.number(),
             ParseFn::Grouping => self.grouping(),
             ParseFn::Literal => self.literal(),
+            ParseFn::String => self.string(),
         }
     }
 
@@ -363,7 +377,7 @@ impl Compiler {
     fn number(&mut self) -> Result<(), String> {
         let token = self.advance();
         if let TokenType::NUMBER(n) = token.token_type {
-            self.emit_constant(n);
+            self.emit_constant(Constant::Number(n));
         }
 
         Ok(())
@@ -421,8 +435,8 @@ impl Compiler {
         self.chunk.code.push((op2, self.curr_line));
     }
 
-    fn emit_constant(&mut self, num: f64) {
-        let index = self.chunk.add_constant(Constant::Number(num));
+    fn emit_constant(&mut self, val: Constant) {
+        let index = self.chunk.add_constant(val);
 
         self.emit_byte(OpCode::Constant(index));
     }

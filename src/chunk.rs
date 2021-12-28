@@ -18,6 +18,7 @@ pub enum OpCode {
 #[derive(Debug, Clone)]
 pub enum Constant {
     Number(f64),
+    String(String),
 }
 
 #[derive(Debug, Copy, Clone)]
