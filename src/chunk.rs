@@ -14,6 +14,10 @@ pub enum OpCode {
     Equal,
     Greater,
     Less,
+    Print,
+    Pop,
+    DefineGlobal,
+    GetGlobal,
 }
 #[derive(Debug, Clone)]
 pub enum Constant {

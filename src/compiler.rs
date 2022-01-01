@@ -44,6 +44,7 @@ pub enum ParseFn {
     Grouping,
     Literal,
     String,
+    Variable,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -76,13 +77,81 @@ impl Compiler {
         let _ = scanner.scan_tokens();
         self.tokens = scanner.tokens.into_iter().peekable();
 
-        let maybe_ok = self.expression();
+        let mut maybe_ok = Ok(());
+        loop {
+            let token = self.peek();
+            match token.token_type {
+                TokenType::EOF => break,
+                _ => {
+                    maybe_ok = self.declaration();
+                }
+            }
+        }
+        self.advance(); // consume the EOF token
 
-        self.emit_return();
         println!(
             "CURRENT CHUNK: {:?}, CURRENT CONSTANT: {:?}",
             self.chunk.code, self.chunk.constants
         );
+
+        maybe_ok
+    }
+
+    fn declaration(&mut self) -> Result<(), String> {
+        let maybe_ok = match self.peek().token_type {
+            TokenType::VAR => self.var_declaration(),
+            _ => self.statement(),
+        };
+
+        maybe_ok
+    }
+
+    fn var_declaration(&mut self) -> Result<(), String> {
+        self.advance(); // consume the var token
+        let iden = if let TokenType::IDENTIFIER(i) = self.peek().token_type {
+            i
+        } else {
+            return Err("There is no variable identifier".to_string());
+        };
+
+        self.advance(); // consume the identifier token
+
+        if let TokenType::EQUAL = self.peek().token_type {
+            self.advance(); // consume the equal token
+            self.expression();
+        } else {
+            self.emit_byte(OpCode::Nil);
+        }
+
+        self.advance(); // consume semicolon token
+
+        self.emit_constant(Constant::String(iden));
+        self.emit_byte(OpCode::DefineGlobal);
+
+        Ok(())
+    }
+
+    fn statement(&mut self) -> Result<(), String> {
+        match self.peek().token_type {
+            TokenType::PRINT => self.print_statement(),
+            _ => self.expression_statement(),
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<(), String> {
+        self.advance(); // consume print token
+        let maybe_ok = self.expression();
+        let token = self.advance(); // consume semicolon token
+        self.emit_byte(OpCode::Print);
+
+        maybe_ok
+    }
+
+    fn expression_statement(&mut self) -> Result<(), String> {
+        let maybe_ok = self.expression();
+        self.advance(); // consume semicolon token;
+
+        self.emit_byte(OpCode::Pop);
 
         maybe_ok
     }
@@ -190,7 +259,7 @@ impl Compiler {
                 precedence: Precedence::Comparison,
             },
             TokenType::IDENTIFIER(_) => ParseRule {
-                prefix: None,
+                prefix: Some(ParseFn::Variable),
                 infix: None,
                 precedence: Precedence::None,
             },
@@ -323,6 +392,21 @@ impl Compiler {
         Ok(())
     }
 
+    fn variable(&mut self) -> Result<(), String> {
+        let iden = if let TokenType::IDENTIFIER(i) = self.peek().token_type {
+            i
+        } else {
+            return Err("There is no variable identifier".to_string());
+        };
+
+        self.advance(); // consume identifier token
+
+        self.emit_constant(Constant::String(iden));
+        self.emit_byte(OpCode::GetGlobal);
+
+        Ok(())
+    }
+
     fn apply_parse_fn(&mut self, parse_fn: ParseFn) -> Result<(), String> {
         match parse_fn {
             ParseFn::Unary => self.unary(),
@@ -331,6 +415,7 @@ impl Compiler {
             ParseFn::Grouping => self.grouping(),
             ParseFn::Literal => self.literal(),
             ParseFn::String => self.string(),
+            ParseFn::Variable => self.variable(),
         }
     }
 

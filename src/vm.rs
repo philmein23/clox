@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::chunk::{Chunk, Constant, LineNumber, OpCode};
 use crate::compiler::Compiler;
 use crate::debug::disassemble_chunk;
@@ -16,6 +18,7 @@ pub struct VM {
     chunk: Chunk,
     ip: usize,
     stack: Vec<Value>,
+    globals: HashMap<String, Value>,
 }
 
 impl VM {
@@ -24,6 +27,7 @@ impl VM {
             chunk: Chunk::new(),
             ip: 0,
             stack: vec![],
+            globals: Default::default(),
         }
     }
     pub fn interpret(&mut self, source: &str) -> Result<(), InterpretError> {
@@ -67,8 +71,15 @@ impl VM {
 
                     self.stack.push(val);
                 }
-                Some((OpCode::Return, ln)) => {
-                    println!("RETURN VALUE: {:?}", self.pop());
+                Some((OpCode::Print, ln)) => {
+                    match self.pop() {
+                        Value::Number(n) => println!("{:?}", n),
+                        Value::String(s) => println!("{:?}", s),
+                        _ => panic!("There is no value"),
+                    };
+                }
+                Some((OpCode::Pop, ln)) => {
+                    let _ = self.pop();
                 }
                 Some((OpCode::True, ln)) => {
                     self.stack.push(Value::Bool(true));
@@ -102,6 +113,22 @@ impl VM {
                             self.stack.push(runtime_val);
                         }
                         _ => return Err(InterpretError::InterpretRuntimeError),
+                    }
+                }
+                Some((OpCode::DefineGlobal, ln)) => {
+                    if let Value::String(name) = self.pop() {
+                        let value = self.pop();
+                        self.globals.insert(name, value);
+                    }
+                }
+                Some((OpCode::GetGlobal, ln)) => {
+                    if let Value::String(name) = self.pop() {
+                        match self.globals.get(&name) {
+                            Some(value) => {
+                                self.stack.push(value.to_owned());
+                            }
+                            None => return Err(InterpretError::InterpretRuntimeError),
+                        }
                     }
                 }
                 _ => {
@@ -147,7 +174,7 @@ impl VM {
                 OpCode::Add => {
                     let lclone = l.clone();
                     let rclone = r.clone();
-                    let concat = format!("{}{}", lclone, rclone); 
+                    let concat = format!("{}{}", lclone, rclone);
                     self.stack.push(Value::String(concat));
                 }
                 _ => {
@@ -309,19 +336,41 @@ fn test_string_equality() {
     let input = String::from(
         r#"
           "Phil" == "Phil";
-        "#
+        "#,
     );
 
     interpret(input);
 }
-
 
 #[test]
 fn test_string_inequality() {
     let input = String::from(
         r#"
           "Phil" == "Bob";
-        "#
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_print_statement() {
+    let input = String::from(
+        r#"
+            print 1 + 2 + 5;
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_read_variable() {
+    let input = String::from(
+        r#"
+            var age = 1 + 2 + 10;
+            print age;
+        "#,
     );
 
     interpret(input);
