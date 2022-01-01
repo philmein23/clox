@@ -18,6 +18,7 @@ pub enum OpCode {
     Pop,
     DefineGlobal,
     GetGlobal,
+    SetGlobal,
 }
 #[derive(Debug, Clone)]
 pub enum Constant {

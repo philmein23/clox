@@ -401,8 +401,16 @@ impl Compiler {
 
         self.advance(); // consume identifier token
 
-        self.emit_constant(Constant::String(iden));
-        self.emit_byte(OpCode::GetGlobal);
+        if let TokenType::EQUAL = self.peek().token_type {
+            self.advance(); // consume the equal token
+            self.expression();
+
+            self.emit_constant(Constant::String(iden));
+            self.emit_byte(OpCode::SetGlobal);
+        } else {
+            self.emit_constant(Constant::String(iden));
+            self.emit_byte(OpCode::GetGlobal);
+        }
 
         Ok(())
     }

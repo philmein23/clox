@@ -103,7 +103,6 @@ impl VM {
                     let val = self.chunk.constants.get(index);
                     match val {
                         Some(Constant::Number(num)) => {
-                            println!("Value {:?}", num);
                             let runtime_val = Value::Number(num.clone());
                             self.stack.push(runtime_val);
                         }
@@ -128,6 +127,19 @@ impl VM {
                                 self.stack.push(value.to_owned());
                             }
                             None => return Err(InterpretError::InterpretRuntimeError),
+                        }
+                    }
+                }
+                Some((OpCode::SetGlobal, ln)) => {
+                    if let Value::String(name) = self.pop() {
+                        let value = self.peek();
+                        match self.globals.contains_key(&name) {
+                            true => {
+                                self.globals.insert(name, value.to_owned());
+                            }
+                            false => {
+                                return Err(InterpretError::InterpretRuntimeError);
+                            }
                         }
                     }
                 }
@@ -223,6 +235,16 @@ impl VM {
             }
         }
     }
+
+    fn peek(&mut self) -> Value {
+        let mut stack = self.stack.iter().peekable();
+        if let Some(&val) = stack.peek() {
+            return val.to_owned();
+        } else {
+            panic!("The stack is empty");
+        }
+    }
+
     fn pop(&mut self) -> Value {
         if let Some(val) = self.stack.pop() {
             return val;
@@ -369,6 +391,19 @@ fn test_read_variable() {
     let input = String::from(
         r#"
             var age = 1 + 2 + 10;
+            print age;
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_set_variable() {
+    let input = String::from(
+        r#"
+            var age = 1 + 2 + 10;
+            age = 35;
             print age;
         "#,
     );

@@ -31,6 +31,7 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
             OpCode::Pop => "OP_POP".to_string(),
             OpCode::DefineGlobal => "OP_DEFINE_GLOBAL".to_string(),
             OpCode::GetGlobal => "OP_GET_GLOBAL".to_string(),
+            OpCode::SetGlobal => "OP_SET_GLOBAL".to_string(),
         };
 
         let instruction = format!(
