@@ -366,7 +366,7 @@ impl Compiler {
         }
     }
 
-    fn literal(&mut self) -> Result<(), String> {
+    fn literal(&mut self, can_assign: bool) -> Result<(), String> {
         let token = self.advance(); // consume the literal
 
         match token.token_type {
@@ -380,7 +380,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn string(&mut self) -> Result<(), String> {
+    fn string(&mut self, can_assign: bool) -> Result<(), String> {
         let token = self.advance(); // consume string token;
         match token.token_type {
             TokenType::STRING(s) => {
@@ -392,7 +392,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn variable(&mut self) -> Result<(), String> {
+    fn variable(&mut self, can_assign: bool) -> Result<(), String> {
         let iden = if let TokenType::IDENTIFIER(i) = self.peek().token_type {
             i
         } else {
@@ -401,7 +401,8 @@ impl Compiler {
 
         self.advance(); // consume identifier token
 
-        if let TokenType::EQUAL = self.peek().token_type {
+        let peek_token = self.peek().token_type;
+        if peek_token == TokenType::EQUAL && can_assign == true {
             self.advance(); // consume the equal token
             self.expression();
 
@@ -415,19 +416,19 @@ impl Compiler {
         Ok(())
     }
 
-    fn apply_parse_fn(&mut self, parse_fn: ParseFn) -> Result<(), String> {
+    fn apply_parse_fn(&mut self, parse_fn: ParseFn, can_assign: bool) -> Result<(), String> {
         match parse_fn {
-            ParseFn::Unary => self.unary(),
-            ParseFn::Binary => self.binary(),
-            ParseFn::Number => self.number(),
-            ParseFn::Grouping => self.grouping(),
-            ParseFn::Literal => self.literal(),
-            ParseFn::String => self.string(),
-            ParseFn::Variable => self.variable(),
+            ParseFn::Unary => self.unary(can_assign),
+            ParseFn::Binary => self.binary(can_assign),
+            ParseFn::Number => self.number(can_assign),
+            ParseFn::Grouping => self.grouping(can_assign),
+            ParseFn::Literal => self.literal(can_assign),
+            ParseFn::String => self.string(can_assign),
+            ParseFn::Variable => self.variable(can_assign),
         }
     }
 
-    fn binary(&mut self) -> Result<(), String> {
+    fn binary(&mut self, can_assign: bool) -> Result<(), String> {
         let op = self.advance();
         let rule = self.get_rule(&op);
         self.parse_precedence(increment_precedence(rule.precedence));
@@ -451,7 +452,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn unary(&mut self) -> Result<(), String> {
+    fn unary(&mut self, can_assign: bool) -> Result<(), String> {
         let unary_op = self.advance();
 
         self.parse_precedence(Precedence::Unary);
@@ -467,7 +468,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn number(&mut self) -> Result<(), String> {
+    fn number(&mut self, can_assign: bool) -> Result<(), String> {
         let token = self.advance();
         if let TokenType::NUMBER(n) = token.token_type {
             self.emit_constant(Constant::Number(n));
@@ -475,7 +476,7 @@ impl Compiler {
 
         Ok(())
     }
-    fn grouping(&mut self) -> Result<(), String> {
+    fn grouping(&mut self, can_assign: bool) -> Result<(), String> {
         let _ = self.advance(); // consume the '(' token
         let _ = self.expression();
         let _ = self.advance(); // consume the ')' token
@@ -487,10 +488,11 @@ impl Compiler {
         let token = self.peek();
         let prefix_rule = self.get_rule(&token);
         let mut maybe_ok = Ok(());
+        let can_assign = precedence <= Precedence::Assignment;
 
         match prefix_rule.prefix {
             Some(rule) => {
-                maybe_ok = self.apply_parse_fn(rule);
+                maybe_ok = self.apply_parse_fn(rule, can_assign);
             }
             _ => {
                 return Err("Expected expression".to_string());
@@ -509,7 +511,7 @@ impl Compiler {
                     precedence: _,
                 } = maybe_infix_rule
                 {
-                    maybe_ok = self.apply_parse_fn(infix_rule);
+                    maybe_ok = self.apply_parse_fn(infix_rule, can_assign);
                 }
             } else {
                 break;
