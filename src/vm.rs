@@ -411,6 +411,23 @@ fn test_set_variable() {
     interpret(input);
 }
 
+#[test]
+fn test_local_variable() {
+    let input = String::from(
+        r#"
+            {
+                var age = 2 + 2 + 4;
+                var phil = "cool";
+                {
+                    var age = 4 + 5;
+                }
+            }
+        "#,
+    );
+
+    interpret(input);
+}
+
 fn interpret(source: String) {
     let mut vm = VM::new();
     vm.interpret(source.as_str());

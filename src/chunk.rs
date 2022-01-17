@@ -19,6 +19,8 @@ pub enum OpCode {
     DefineGlobal,
     GetGlobal,
     SetGlobal,
+    GetLocal(usize),
+    SetLocal(usize),
 }
 #[derive(Debug, Clone)]
 pub enum Constant {

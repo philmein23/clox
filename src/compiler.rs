@@ -2,6 +2,7 @@ use crate::chunk::{Chunk, Constant, LineNumber, OpCode};
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 use std::default;
+use std::fmt::format;
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
@@ -47,6 +48,12 @@ pub enum ParseFn {
     Variable,
 }
 
+#[derive(Debug, Clone)]
+struct Local {
+    iden: String,
+    depth: isize,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct ParseRule {
     prefix: Option<ParseFn>,
@@ -58,6 +65,9 @@ pub struct Compiler {
     tokens: Peekable<IntoIter<Token>>,
     pub chunk: Chunk,
     curr_line: LineNumber,
+    locals: Vec<Local>,
+    scope_depth: isize,
+    local_count: usize,
 }
 
 impl Compiler {
@@ -65,10 +75,14 @@ impl Compiler {
         let chunk = Chunk::new();
         let ln = LineNumber::new(0);
         let tokens = vec![].into_iter().peekable();
+        let locals = Default::default();
         Compiler {
             tokens,
             chunk,
             curr_line: ln,
+            locals,
+            scope_depth: 0,
+            local_count: 0,
         }
     }
 
@@ -116,6 +130,8 @@ impl Compiler {
 
         self.advance(); // consume the identifier token
 
+        self.declare_variable(&iden);
+
         if let TokenType::EQUAL = self.peek().token_type {
             self.advance(); // consume the equal token
             self.expression();
@@ -125,16 +141,97 @@ impl Compiler {
 
         self.advance(); // consume semicolon token
 
+        if self.scope_depth > 0 {
+            return Ok(());
+        }
+
         self.emit_constant(Constant::String(iden));
         self.emit_byte(OpCode::DefineGlobal);
 
         Ok(())
     }
 
+    fn declare_variable(&mut self, name: &String) {
+        if self.scope_depth == 0 {
+            return;
+        };
+
+        let mut len = self.local_count - 1;
+
+        loop {
+            match self.locals.get(len) {
+                Some(local) if local.depth != -1 && local.depth < self.scope_depth => {
+                    break;
+                }
+                Some(local) if name.eq(&local.iden) => {
+                    panic!(format!(
+                        "Already a variable with this name {} in this scope.",
+                        name
+                    ));
+                }
+                _ => {
+                    len -= 1;
+                }
+            }
+        }
+
+        self.add_local(name)
+    }
+
+    fn add_local(&mut self, name: &String) {
+        self.local_count += 1;
+
+        let new_local = Local {
+            iden: name.to_owned(),
+            depth: -1,
+        };
+
+        self.locals.push(new_local);
+    }
+
     fn statement(&mut self) -> Result<(), String> {
         match self.peek().token_type {
             TokenType::PRINT => self.print_statement(),
+            TokenType::LEFT_BRACE => self.block(),
             _ => self.expression_statement(),
+        }
+    }
+
+    fn block(&mut self) -> Result<(), String> {
+        self.advance(); // consume left brace token
+        self.begin_scope();
+        loop {
+            match self.peek().token_type {
+                TokenType::RIGHT_BRACE | TokenType::EOF => break,
+                _ => {
+                    self.declaration();
+                }
+            }
+        }
+
+        self.advance(); // consume right brace token
+        self.end_scope();
+
+        Ok(())
+    }
+
+    fn begin_scope(&mut self) {
+        self.scope_depth += 1;
+    }
+
+    fn end_scope(&mut self) {
+        self.scope_depth -= 1;
+
+        loop {
+            match self.locals.pop() {
+                Some(local) if local.depth > self.scope_depth && self.local_count > 0 => {
+                    self.emit_byte(OpCode::Pop);
+                    self.local_count -= 1;
+                }
+                _ => {
+                    break;
+                }
+            }
         }
     }
 
@@ -401,8 +498,13 @@ impl Compiler {
 
         self.advance(); // consume identifier token
 
+        if self.scope_depth > 0 {
+            self.handle_local_variable(&iden, can_assign);
+            return Ok(());
+        }
+
         let peek_token = self.peek().token_type;
-        if peek_token == TokenType::EQUAL && can_assign == true {
+        if peek_token == TokenType::EQUAL && can_assign {
             self.advance(); // consume the equal token
             self.expression();
 
@@ -414,6 +516,40 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    fn handle_local_variable(&mut self, name: &String, can_assign: bool) -> Result<(), String> {
+        let peek_token = self.peek().token_type;
+        let idx = self.resolve_variable(name);
+
+        if peek_token == TokenType::EQUAL && can_assign {
+            self.advance(); // consume equal token
+            self.expression();
+
+            self.emit_byte(OpCode::SetLocal(idx));
+        } else {
+            self.emit_byte(OpCode::GetLocal(idx));
+        }
+
+        Ok(())
+    }
+
+    fn resolve_variable(&mut self, name: &String) -> usize {
+        let mut idx = self.local_count - 1;
+
+        loop {
+            match self.locals.get(idx) {
+                Some(local) if local.depth == -1 => {
+                    panic!("Can't read local variable in its own initializer");
+                }
+                Some(local) if local.iden.eq(name) => {
+                    return idx;
+                }
+                _ => {
+                    idx -= 1;
+                }
+            }
+        }
     }
 
     fn apply_parse_fn(&mut self, parse_fn: ParseFn, can_assign: bool) -> Result<(), String> {
