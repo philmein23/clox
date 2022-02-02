@@ -67,7 +67,7 @@ pub struct Compiler {
     curr_line: LineNumber,
     locals: Vec<Local>,
     scope_depth: isize,
-    local_count: usize,
+    local_count: isize,
 }
 
 impl Compiler {
@@ -142,6 +142,7 @@ impl Compiler {
         self.advance(); // consume semicolon token
 
         if self.scope_depth > 0 {
+            self.mark_initialized();
             return Ok(());
         }
 
@@ -151,21 +152,28 @@ impl Compiler {
         Ok(())
     }
 
+    fn mark_initialized(&mut self) {
+        if let Some(local) = self.locals.get_mut(self.local_count as usize - 1) {
+            local.depth = self.scope_depth;
+        }
+    }
+
     fn declare_variable(&mut self, name: &String) {
         if self.scope_depth == 0 {
             return;
         };
-
         let mut len = self.local_count - 1;
-
         loop {
-            match self.locals.get(len) {
+            if len < 0 {
+                break;
+            }
+            match self.locals.get(len as usize) {
                 Some(local) if local.depth != -1 && local.depth < self.scope_depth => {
                     break;
                 }
                 Some(local) if name.eq(&local.iden) => {
                     panic!(format!(
-                        "Already a variable with this name {} in this scope.",
+                        "Already a variable with this name {:?} in this scope.",
                         name
                     ));
                 }
@@ -193,8 +201,60 @@ impl Compiler {
         match self.peek().token_type {
             TokenType::PRINT => self.print_statement(),
             TokenType::LEFT_BRACE => self.block(),
+            TokenType::IF => self.if_statement(),
             _ => self.expression_statement(),
         }
+    }
+
+    fn if_statement(&mut self) -> Result<(), String> {
+        self.advance(); // consume the if token
+        self.advance(); // consume the left paren token
+
+        self.expression();
+
+        self.advance(); // consume the right paren token
+
+        let then_jump = self.emit_jump(OpCode::JumpIfFalse(0));
+        self.emit_byte(OpCode::Pop);
+
+        self.statement(); // compile statements in then branch
+
+        let else_jump = self.emit_jump(OpCode::Jump(0));
+        self.patch_jump(then_jump);
+        
+        self.emit_byte(OpCode::Pop);
+        let peek_token = self.peek();
+        
+        if peek_token.token_type == TokenType::ELSE {
+            self.advance(); // consume else token;
+            self.statement();
+        };
+
+        self.patch_jump(else_jump)
+    }
+
+    fn emit_jump(&mut self, op: OpCode) -> usize {
+        self.emit_byte(op);
+        self.chunk.code.len() - 1
+    }
+
+    fn patch_jump(&mut self, offset: usize) -> Result<(), String> {
+        let true_jump = self.chunk.code.len() - offset - 1;
+        println!("CODE LEN: {:?}", self.chunk.code.len());
+        println!("TRUE JUMP {:?}", true_jump);
+        match self.chunk.code.get_mut(offset) {
+            Some((OpCode::JumpIfFalse(val), _)) => {
+                *val = true_jump;
+            }
+            Some((OpCode::Jump(val), _)) => {
+                *val = true_jump;
+            }
+            _ => {
+                return Err("Too much code to jump over".to_string());
+            }
+        }
+
+        Ok(())
     }
 
     fn block(&mut self) -> Result<(), String> {
@@ -246,6 +306,7 @@ impl Compiler {
 
     fn expression_statement(&mut self) -> Result<(), String> {
         let maybe_ok = self.expression();
+        println!("EXPRESSION STATEMENT");
         self.advance(); // consume semicolon token;
 
         self.emit_byte(OpCode::Pop);
@@ -538,12 +599,15 @@ impl Compiler {
         let mut idx = self.local_count - 1;
 
         loop {
-            match self.locals.get(idx) {
+            match self.locals.get(idx as usize) {
                 Some(local) if local.depth == -1 => {
                     panic!("Can't read local variable in its own initializer");
                 }
                 Some(local) if local.iden.eq(name) => {
-                    return idx;
+                    return idx as usize;
+                }
+                None => {
+                    panic!("There is no local variable found.")
                 }
                 _ => {
                     idx -= 1;

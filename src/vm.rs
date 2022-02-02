@@ -143,6 +143,34 @@ impl VM {
                         }
                     }
                 }
+                Some((OpCode::SetLocal(idx), ln)) => {
+                    let curr = self.peek();
+                    match self.stack.get_mut(idx) {
+                        Some(val) => {
+                            *val = curr;
+                        }
+                        _ => {
+                            return Err(InterpretError::InterpretRuntimeError);
+                        }
+                    }
+                }
+                Some((OpCode::GetLocal(idx), ln)) => match self.stack.get(idx) {
+                    Some(val) => {
+                        let val = val.clone();
+                        self.stack.push(val);
+                    }
+                    _ => {
+                        return Err(InterpretError::InterpretRuntimeError);
+                    }
+                },
+                Some((OpCode::JumpIfFalse(jump), ln)) => {
+                    if let Value::Bool(false) = self.peek() {
+                        self.ip += jump;
+                    }
+                }
+                Some((OpCode::Jump(jump), ln)) => {
+                    self.ip += jump;
+                }
                 _ => {
                     break;
                 }
@@ -420,11 +448,54 @@ fn test_local_variable() {
                 var phil = "cool";
                 {
                     var age = 4 + 5;
+                    age = 27;
+                    print age;
+                    print phil;
                 }
             }
         "#,
     );
 
+    interpret(input);
+}
+
+#[test]
+fn test_if_statement() {
+    let input = String::from(
+        r#"
+            if (3 > 2) {
+                var val = 2;
+                print val;
+            }
+
+            if (1 > 3) {
+            var val = 10;
+            print val;
+            }
+
+            var age = 33;
+            print age;
+        "#,
+    );
+
+    interpret(input);
+}
+
+#[test]
+fn test_if_else_statement() {
+    let input = String::from(
+        r#"
+            if (1 > 3) {
+                var age = 30;
+                print age;
+            } else {
+                var age = 45;
+                print age;
+            }
+            var phil = "cool";
+            print phil;
+        "#
+    );
     interpret(input);
 }
 
