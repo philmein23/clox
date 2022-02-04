@@ -46,6 +46,8 @@ pub enum ParseFn {
     Literal,
     String,
     Variable,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone)]
@@ -221,10 +223,10 @@ impl Compiler {
 
         let else_jump = self.emit_jump(OpCode::Jump(0));
         self.patch_jump(then_jump);
-        
+
         self.emit_byte(OpCode::Pop);
         let peek_token = self.peek();
-        
+
         if peek_token.token_type == TokenType::ELSE {
             self.advance(); // consume else token;
             self.statement();
@@ -240,8 +242,11 @@ impl Compiler {
 
     fn patch_jump(&mut self, offset: usize) -> Result<(), String> {
         let true_jump = self.chunk.code.len() - offset - 1;
-        println!("CODE LEN: {:?}", self.chunk.code.len());
-        println!("TRUE JUMP {:?}", true_jump);
+        println!(
+            "CODE LENGTH: {:?}, TRUE JUMP {:?}",
+            self.chunk.code.len(),
+            true_jump
+        );
         match self.chunk.code.get_mut(offset) {
             Some((OpCode::JumpIfFalse(val), _)) => {
                 *val = true_jump;
@@ -305,8 +310,8 @@ impl Compiler {
     }
 
     fn expression_statement(&mut self) -> Result<(), String> {
-        let maybe_ok = self.expression();
         println!("EXPRESSION STATEMENT");
+        let maybe_ok = self.expression();
         self.advance(); // consume semicolon token;
 
         self.emit_byte(OpCode::Pop);
@@ -433,8 +438,8 @@ impl Compiler {
             },
             TokenType::AND => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::And),
+                precedence: Precedence::And,
             },
             TokenType::CLASS => ParseRule {
                 prefix: None,
@@ -473,8 +478,8 @@ impl Compiler {
             },
             TokenType::OR => ParseRule {
                 prefix: None,
-                infix: None,
-                precedence: Precedence::None,
+                infix: Some(ParseFn::Or),
+                precedence: Precedence::Or,
             },
             TokenType::PRINT => ParseRule {
                 prefix: None,
@@ -522,6 +527,21 @@ impl Compiler {
                 precedence: Precedence::None,
             },
         }
+    }
+
+    fn and(&mut self, can_assign: bool) -> Result<(), String> {
+        self.advance(); // consume the and token
+        let end_jump = self.emit_jump(OpCode::JumpIfFalse(0));
+
+        self.emit_byte(OpCode::Pop);
+
+        self.parse_precedence(Precedence::And);
+
+        self.patch_jump(end_jump)
+    }
+
+    fn or(&mut self, can_assign: bool) -> Result<(), String> {
+        todo!()
     }
 
     fn literal(&mut self, can_assign: bool) -> Result<(), String> {
@@ -625,6 +645,8 @@ impl Compiler {
             ParseFn::Literal => self.literal(can_assign),
             ParseFn::String => self.string(can_assign),
             ParseFn::Variable => self.variable(can_assign),
+            ParseFn::And => self.and(can_assign),
+            ParseFn::Or => self.or(can_assign),
         }
     }
 
@@ -669,7 +691,7 @@ impl Compiler {
     }
 
     fn number(&mut self, can_assign: bool) -> Result<(), String> {
-        let token = self.advance();
+        let token = self.advance(); // consume number token
         if let TokenType::NUMBER(n) = token.token_type {
             self.emit_constant(Constant::Number(n));
         }

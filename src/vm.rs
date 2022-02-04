@@ -75,6 +75,7 @@ impl VM {
                     match self.pop() {
                         Value::Number(n) => println!("{:?}", n),
                         Value::String(s) => println!("{:?}", s),
+                        Value::Bool(b) => println!("{:?}", b),
                         _ => panic!("There is no value"),
                     };
                 }
@@ -164,7 +165,9 @@ impl VM {
                     }
                 },
                 Some((OpCode::JumpIfFalse(jump), ln)) => {
-                    if let Value::Bool(false) = self.peek() {
+                    let val = self.peek();
+                    if self.is_falsey(val) {
+                        println!("CURR IP: {:?} JUMP: {:?}", self.ip, jump);
                         self.ip += jump;
                     }
                 }
@@ -177,6 +180,14 @@ impl VM {
             }
         }
         Ok(())
+    }
+
+    fn is_falsey(&mut self, val: Value) -> bool {
+        match val {
+            Value::Bool(false) => true,
+            Value::Number(num) if num == 0 as f64 => true,
+            _ => false,
+        }
     }
 
     fn next_op_and_advance(&mut self) -> Option<(OpCode, LineNumber)> {
@@ -494,8 +505,26 @@ fn test_if_else_statement() {
             }
             var phil = "cool";
             print phil;
-        "#
+        "#,
     );
+    interpret(input);
+}
+
+#[test]
+fn test_and_operator() {
+    let input = String::from(
+        r#"
+            var test = false and true;
+            var test2 = true and true;
+            var age = 12 and 2;
+            var derp = 0 and 5;
+            print test;
+            print age;
+            print test2;
+            print derp;
+        "#,
+    );
+
     interpret(input);
 }
 

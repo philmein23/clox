@@ -112,6 +112,10 @@ impl Scanner {
         let mut iden = initial.to_string();
         while let Some((_pos, ch)) = char_indices.next_if(|(_pos, ch)| ch.is_alphabetic()) {
             iden.push(ch);
+
+            if let Some((_pos, ch)) =char_indices.next_if(|(_pos, c)| c.is_ascii_digit()) {
+                iden.push(ch);
+            }
         }
 
         self.match_reserved_word(iden.as_str(), ln)
