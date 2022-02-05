@@ -310,7 +310,6 @@ impl Compiler {
     }
 
     fn expression_statement(&mut self) -> Result<(), String> {
-        println!("EXPRESSION STATEMENT");
         let maybe_ok = self.expression();
         self.advance(); // consume semicolon token;
 
@@ -541,7 +540,17 @@ impl Compiler {
     }
 
     fn or(&mut self, can_assign: bool) -> Result<(), String> {
-        todo!()
+        self.advance(); // consume the or token
+
+        let else_jump = self.emit_jump(OpCode::JumpIfFalse(0));
+        let end_jump = self.emit_jump(OpCode::Jump(0));
+
+        self.patch_jump(else_jump);
+        self.emit_byte(OpCode::Pop);
+
+        self.parse_precedence(Precedence::Or);
+
+        self.patch_jump(end_jump)
     }
 
     fn literal(&mut self, can_assign: bool) -> Result<(), String> {

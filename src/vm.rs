@@ -172,6 +172,7 @@ impl VM {
                     }
                 }
                 Some((OpCode::Jump(jump), ln)) => {
+                    println!("JUMP CURR IP: {:?} JUMP: {:?}", self.ip, jump);
                     self.ip += jump;
                 }
                 _ => {
@@ -525,6 +526,19 @@ fn test_and_operator() {
         "#,
     );
 
+    interpret(input);
+}
+
+#[test]
+fn test_or_operator() {
+    let input = String::from(
+        r#"
+           var test = true or false;
+            // var age = 35 or 40;
+            print test;
+            // print age;
+        "#
+    );
     interpret(input);
 }
 
