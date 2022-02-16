@@ -113,7 +113,7 @@ impl Scanner {
         while let Some((_pos, ch)) = char_indices.next_if(|(_pos, ch)| ch.is_alphabetic()) {
             iden.push(ch);
 
-            while let Some((_pos, ch)) =char_indices.next_if(|(_pos, c)| c.is_ascii_digit()) {
+            while let Some((_pos, ch)) = char_indices.next_if(|(_pos, c)| c.is_ascii_digit()) {
                 iden.push(ch);
             }
         }

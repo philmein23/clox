@@ -167,13 +167,18 @@ impl VM {
                 Some((OpCode::JumpIfFalse(jump), ln)) => {
                     let val = self.peek();
                     if self.is_falsey(val) {
-                        println!("CURR IP: {:?} JUMP: {:?}", self.ip, jump);
+                        println!("IS FALSE => {:?}", self.stack);
+                        println!("IS FALSE => CURR IP: {:?} JUMP: {:?}", self.ip, jump);
                         self.ip += jump;
                     }
                 }
                 Some((OpCode::Jump(jump), ln)) => {
                     println!("JUMP CURR IP: {:?} JUMP: {:?}", self.ip, jump);
                     self.ip += jump;
+                }
+                Some((OpCode::Loop(jump), ln)) => {
+                    println!("BACKTRACK JUMP CURR IP: {:?} JUMP: {:?}", self.ip, jump);
+                    self.ip -= jump;
                 }
                 _ => {
                     break;
@@ -537,7 +542,21 @@ fn test_or_operator() {
             // var age = 35 or 40;
             print test;
             // print age;
-        "#
+        "#,
+    );
+    interpret(input);
+}
+
+#[test]
+fn test_while_statement() {
+    let input = String::from(
+        r#"
+        {
+            while (true) {
+                print "cool";
+            }
+        }
+        "#,
     );
     interpret(input);
 }

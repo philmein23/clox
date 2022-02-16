@@ -36,6 +36,7 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
             OpCode::SetLocal(_) => "OP_SET_LOCAL".to_string(),
             OpCode::JumpIfFalse(_) => "OP_JUMP_IF_FALSE".to_string(),
             OpCode::Jump(_) => "OP_JUMP".to_string(),
+            OpCode::Loop(_) => "OP_LOOP".to_string(),
         };
 
         let instruction = format!(

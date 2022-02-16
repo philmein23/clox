@@ -23,6 +23,7 @@ pub enum OpCode {
     SetLocal(usize),
     JumpIfFalse(usize),
     Jump(usize),
+    Loop(usize),
 }
 #[derive(Debug, Clone)]
 pub enum Constant {

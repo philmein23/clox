@@ -156,6 +156,7 @@ impl Compiler {
 
     fn mark_initialized(&mut self) {
         if let Some(local) = self.locals.get_mut(self.local_count as usize - 1) {
+            println!("MARK INIT: {:?}", local);
             local.depth = self.scope_depth;
         }
     }
@@ -189,6 +190,7 @@ impl Compiler {
     }
 
     fn add_local(&mut self, name: &String) {
+        println!("NAME: {:?}", name);
         self.local_count += 1;
 
         let new_local = Local {
@@ -204,8 +206,39 @@ impl Compiler {
             TokenType::PRINT => self.print_statement(),
             TokenType::LEFT_BRACE => self.block(),
             TokenType::IF => self.if_statement(),
+            TokenType::WHILE => self.while_statement(),
             _ => self.expression_statement(),
         }
+    }
+
+    fn while_statement(&mut self) -> Result<(), String> {
+        self.advance(); // consume the while token
+
+        let start_loop = self.chunk.code.len();
+
+        self.advance(); // consume the left paren token
+
+        self.expression();
+
+        self.advance(); // consume the right paren token
+
+        let exit_jump = self.emit_jump(OpCode::JumpIfFalse(0));
+        self.emit_byte(OpCode::Pop);
+        self.statement();
+
+        self.emit_loop(start_loop);
+
+        self.patch_jump(exit_jump);
+
+        self.emit_byte(OpCode::Pop);
+
+        Ok(())
+    }
+
+    fn emit_loop(&mut self, loop_start: usize) {
+        let offset = self.chunk.code.len() - loop_start + 2;
+        println!("EMIT LOOP {:?} OFFSET {:?}", self.chunk.code.len(), offset);
+        self.emit_byte(OpCode::Loop(offset));
     }
 
     fn if_statement(&mut self) -> Result<(), String> {
@@ -310,6 +343,7 @@ impl Compiler {
     }
 
     fn expression_statement(&mut self) -> Result<(), String> {
+        println!("EXPRESSION STATEMENT");
         let maybe_ok = self.expression();
         self.advance(); // consume semicolon token;
 
@@ -626,13 +660,12 @@ impl Compiler {
 
     fn resolve_variable(&mut self, name: &String) -> usize {
         let mut idx = self.local_count - 1;
-
         loop {
             match self.locals.get(idx as usize) {
-                Some(local) if local.depth == -1 => {
-                    panic!("Can't read local variable in its own initializer");
-                }
                 Some(local) if local.iden.eq(name) => {
+                    if local.depth == -1 {
+                        panic!("Can't read local variable in its own initializer");
+                    }
                     return idx as usize;
                 }
                 None => {
@@ -708,10 +741,11 @@ impl Compiler {
         Ok(())
     }
     fn grouping(&mut self, can_assign: bool) -> Result<(), String> {
+        println!("BEGIN GROUPING");
         let _ = self.advance(); // consume the '(' token
         let _ = self.expression();
         let _ = self.advance(); // consume the ')' token
-
+        println!("END GROUPING");
         Ok(())
     }
 
